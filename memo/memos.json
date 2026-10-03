@@ -1,0 +1,16 @@
+{
+  "format": "encrypted-memos",
+  "version": 1,
+  "kdf": {
+    "name": "PBKDF2",
+    "hash": "SHA-256",
+    "iterations": 600000,
+    "salt": "LtjOQgt7KcBxtGEIwQGmuw=="
+  },
+  "cipher": {
+    "name": "AES-GCM",
+    "iv": "LNGrPE30cYyvMSX6"
+  },
+  "data": "Lsr1KAYoTVspcHwAzdn+qw+ojSUasuxCm+x7Iw==",
+  "updatedAt": "2026-10-03T10:21:50.582Z"
+}
