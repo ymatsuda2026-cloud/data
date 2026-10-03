@@ -1,0 +1,15 @@
+{
+  "format": "encrypted-memo",
+  "version": 2,
+  "kdf": {
+    "name": "PBKDF2",
+    "hash": "SHA-256",
+    "iterations": 600000,
+    "salt": "LtjOQgt7KcBxtGEIwQGmuw=="
+  },
+  "cipher": {
+    "name": "AES-GCM",
+    "iv": "dvdQfOE98Kh2URyN"
+  },
+  "data": "NSxSSwzxNwMBM/Y+AwqGHCieqjnyJKld0MhVPYsi3qAaokYHwuGujpHDEdRjeIMMDqsyXLKGHAA+bk1MMJirzaLS4M4fl7J8923KTnoZAiN3i6dg0+GYCcAJpqu0JEfcRNqrQ9wUnLmOKbfRbnJk7UWuQVfZTSFv6Gge4Tl7v2ylCyWz8q/fU0+1X+lSfuwvddwCjfNX5D1cyCy4h/h+ZC37JxIY0GDlv1a/79RO0i6tRaB72SmRciSQaZW/HomJ9UHcCqH/AdqFlHdyYR2G06XsfdLFDXPhWpxQB89qnNDABmX6i2WF95RiPo/O6oRVEQU8Uclm6JytvMZvkx7+X8srTzg68rjBJy1IjSCTRGDS7U3flVk8WMI7EyoHWbuUYeldhwixvi8Ddi74Vz3or1PpXtliHXNW2qz9rJMpc2aTmETu5WAP"
+}
