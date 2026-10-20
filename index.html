@@ -1,0 +1,888 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="かざして返信">
+<meta name="theme-color" content="#EDF0F3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141A20" media="(prefers-color-scheme: dark)">
+<title>かざして返信</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDF0F3; --surface:#FFFFFF; --ink:#1C2630; --muted:#5E6B78; --line:#D5DBE1;
+  --accent:#1E6A86; --accent-ink:#FFFFFF; --accent-soft:#DCEBF1;
+  --self:#D9EEE4; --other:#FFFFFF; --rec:#C93434; --warn:#9A5B00;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#141A20; --surface:#1D252D; --ink:#E6EBEF; --muted:#94A1AD; --line:#2E3943;
+    --accent:#5CB3D1; --accent-ink:#0E1A20; --accent-soft:#1E3440;
+    --self:#21423A; --other:#26303A; --rec:#F06565; --warn:#E3A84B;
+    color-scheme:dark;
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Zen Kaku Gothic New","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",system-ui,sans-serif;
+  font-size:16px;line-height:1.65;-webkit-text-size-adjust:100%;}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+h1,h2,h3{margin:0;font-weight:700;line-height:1.35}
+
+/* ---------- lock ---------- */
+#lock{min-height:100%;display:grid;place-items:center;padding:24px}
+.lockbox{width:100%;max-width:380px}
+.lockbox h1{font-size:28px;letter-spacing:.02em}
+.lockbox p{color:var(--muted);margin:8px 0 24px;font-size:15px}
+.field{display:block;margin:0 0 14px}
+.field span{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+.field input,.field textarea,.field select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:16px}
+.field textarea{resize:vertical;min-height:88px}
+.err{color:var(--rec);font-size:14px;min-height:1.4em;margin:4px 0 8px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:12px;padding:12px 18px;font-weight:700;background:var(--accent);color:var(--accent-ink)}
+.btn.block{width:100%}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
+.btn.quiet{background:var(--accent-soft);color:var(--ink)}
+.btn.danger{background:transparent;color:var(--rec);border:1px solid var(--line)}
+.btn:disabled{opacity:.5}
+.linkbtn{background:none;border:0;color:var(--muted);text-decoration:underline;font-size:14px;padding:6px 0}
+
+/* ---------- app shell ---------- */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:11;background:var(--bg)}
+.toprow{display:flex;align-items:center;gap:10px;padding:10px 16px 4px}
+.toprow h1{font-size:17px;flex:1}
+.sync{font-size:12px;color:var(--muted);white-space:nowrap}
+.sync.err{color:var(--rec)}
+.iconbtn{width:40px;height:40px;border-radius:10px;border:0;background:transparent;display:grid;place-items:center}
+.iconbtn svg{width:22px;height:22px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:6px 16px 12px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;font-size:14px;white-space:nowrap}
+.chip[aria-current="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip.add{color:var(--accent);border-style:dashed}
+
+main{max-width:680px;margin:0 auto;padding:16px 16px calc(150px + env(safe-area-inset-bottom,0px))}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs button{border:0;background:none;padding:10px 0 12px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
+.tabs button svg{width:22px;height:22px}
+.tabs button[aria-selected="true"]{color:var(--accent);font-weight:700}
+#fab{position:fixed;right:16px;bottom:calc(78px + env(safe-area-inset-bottom,0px));z-index:12;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);padding:14px 20px 14px 16px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:16px;box-shadow:0 6px 18px rgba(20,60,80,.28)}
+#fab svg{width:24px;height:24px}
+
+.section{margin:0 0 28px}
+.section h2{font-size:15px;color:var(--muted);font-weight:500;margin-bottom:10px}
+.empty{border:1px dashed var(--line);border-radius:14px;padding:22px 18px;color:var(--muted);font-size:15px}
+.empty .btn{margin-top:12px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+
+/* ---------- conversation ---------- */
+.batch{margin:0 0 18px}
+.batchhead{text-align:center;font-size:12px;color:var(--muted);margin:8px 0 10px}
+.msg{display:flex;margin:6px 0}
+.msg button{border:0;text-align:left;max-width:82%;padding:9px 13px;border-radius:16px;font-size:15px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.msg.other button{background:var(--other);border:1px solid var(--line);border-top-left-radius:4px}
+.msg.self{justify-content:flex-end}
+.msg.self button{background:var(--self);border-top-right-radius:4px}
+.msg time{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+
+/* ---------- report ---------- */
+.rep dt{font-size:13px;color:var(--muted);margin-top:14px}
+.rep dt:first-child{margin-top:0}
+.rep dd{margin:2px 0 0}
+.rep ul{margin:2px 0 0;padding-left:1.2em}
+.reply{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:0 0 10px}
+.reply h3{font-size:14px;color:var(--accent)}
+.reply p{margin:6px 0;white-space:pre-wrap}
+.reply small{display:block;color:var(--muted);font-size:13px}
+.reply .btn{margin-top:10px;padding:8px 14px;font-size:14px}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin:0}
+.kv dt{color:var(--muted);font-size:14px}
+.kv dd{margin:0}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.tags span{background:var(--accent-soft);border-radius:6px;padding:2px 8px;font-size:13px}
+.memo{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 0 10px}
+.memo p{margin:0;white-space:pre-wrap}
+.memo footer{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:12px;color:var(--muted)}
+.memo footer button{background:none;border:0;color:var(--accent);font-size:13px;padding:4px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.hist{list-style:none;margin:0;padding:0}
+.hist li button{width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:10px 2px;font-size:14px;color:var(--muted)}
+.loading{display:flex;align-items:center;gap:10px;color:var(--muted);padding:14px 0}
+.spin{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--accent);animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(1turn)}}
+
+/* ---------- camera ---------- */
+#cam{position:fixed;inset:0;z-index:40;background:#000;color:#fff;display:flex;flex-direction:column}
+#cam video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.camtop{position:relative;z-index:2;display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px;background:linear-gradient(rgba(0,0,0,.6),transparent)}
+.camtop .who{flex:1;font-size:14px}
+.camtop .who b{font-size:16px}
+.camtop button{background:rgba(255,255,255,.16);color:#fff;border:0;border-radius:10px;padding:8px 12px;font-size:14px}
+.guide{position:relative;z-index:1;flex:1;margin:12px 28px;border-radius:22px;pointer-events:none;
+  background:
+   linear-gradient(#fff,#fff) top left/26px 3px no-repeat, linear-gradient(#fff,#fff) top left/3px 26px no-repeat,
+   linear-gradient(#fff,#fff) top right/26px 3px no-repeat, linear-gradient(#fff,#fff) top right/3px 26px no-repeat,
+   linear-gradient(#fff,#fff) bottom left/26px 3px no-repeat, linear-gradient(#fff,#fff) bottom left/3px 26px no-repeat,
+   linear-gradient(#fff,#fff) bottom right/26px 3px no-repeat, linear-gradient(#fff,#fff) bottom right/3px 26px no-repeat;
+  opacity:.75;transition:opacity .2s}
+.guide.flash{opacity:1;box-shadow:inset 0 0 0 3px #7fd3ef}
+.cambottom{position:relative;z-index:2;padding:12px 14px calc(16px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,rgba(0,0,0,.75) 30%)}
+.strip{display:flex;gap:6px;overflow-x:auto;min-height:62px;padding-bottom:6px;scrollbar-width:none}
+.strip::-webkit-scrollbar{display:none}
+.strip img{flex:none;width:36px;height:56px;object-fit:cover;border-radius:5px;border:1px solid rgba(255,255,255,.5)}
+.camstatus{font-size:13px;opacity:.9;margin:4px 0 12px;min-height:1.4em}
+.camstatus .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rec);margin-right:6px;vertical-align:1px;animation:bl 1.2s ease-in-out infinite}
+@keyframes bl{50%{opacity:.25}}
+.camactions{display:grid;grid-template-columns:1fr 1fr 1.6fr;gap:8px}
+.camactions button{border:0;border-radius:12px;padding:13px 6px;font-weight:700;font-size:15px;background:rgba(255,255,255,.16);color:#fff}
+.camactions .rec{background:#fff;color:#0b2733}
+.camactions button:disabled{opacity:.45}
+
+/* ---------- sheet & toast ---------- */
+#sheetWrap{position:fixed;inset:0;z-index:60;background:rgba(10,20,30,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:100%;max-width:560px;max-height:88vh;overflow:auto;background:var(--bg);border-radius:18px 18px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px))}
+.sheet h2{font-size:18px;margin-bottom:14px}
+.sheet h3{font-size:14px;color:var(--muted);font-weight:500;margin:20px 0 10px}
+.sheet .actions{display:flex;gap:10px;margin-top:16px}
+.sheet .actions .btn{flex:1}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:14px}
+.seg label{flex:1;text-align:center;padding:9px 4px;font-size:14px;background:var(--surface)}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label:has(input:checked){background:var(--ink);color:var(--bg);font-weight:700}
+.note{font-size:13px;color:var(--muted);margin:-6px 0 14px}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(150px + env(safe-area-inset-bottom,0px));z-index:70;background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 14px;font-size:14px;display:flex;gap:12px;align-items:center;max-width:calc(100% - 32px)}
+#toast button{background:none;border:0;color:var(--accent-soft);font-weight:700;padding:2px 4px;white-space:nowrap}
+@media (prefers-color-scheme:dark){#toast button{color:var(--accent-ink)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ===== Lock ===== -->
+<section id="lock">
+  <div class="lockbox">
+    <h1>かざして返信</h1>
+    <p id="lockMsg">パスフレーズを入力してください。記録はこのパスフレーズで暗号化して保存します。</p>
+    <label class="field"><span>パスフレーズ</span><input id="pass" type="password" autocomplete="current-password"></label>
+    <label class="field" id="pass2Wrap" hidden><span>確認のためもう一度</span><input id="pass2" type="password" autocomplete="new-password"></label>
+    <div class="err" id="lockErr"></div>
+    <button class="btn block" id="btnUnlock">開く</button>
+    <p style="margin-top:20px"><button class="linkbtn" id="btnReset">この端末の保存内容を消去する</button></p>
+  </div>
+</section>
+
+<!-- ===== App ===== -->
+<div id="app" hidden>
+  <header class="top">
+    <div class="toprow">
+      <h1>かざして返信</h1>
+      <span class="sync" id="sync"></span>
+      <button class="iconbtn" id="btnSettings" aria-label="設定">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </div>
+    <nav class="chips" id="contacts" aria-label="相手"></nav>
+  </header>
+
+  <main id="view"></main>
+
+  <button id="fab" aria-label="カメラでかざして記録">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 8h3l1.6-2.2h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.4"/></svg>
+    かざす
+  </button>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="log" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v11H9l-5 4z"/></svg>経緯</button>
+    <button role="tab" data-tab="person"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20c1.2-4 4-5.6 7.5-5.6s6.3 1.6 7.5 5.6"/></svg>人物像</button>
+    <button role="tab" data-tab="memo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l4 4v14H6z"/><path d="M9 11h7M9 15h7"/></svg>メモ</button>
+    <button role="tab" data-tab="advice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l2.2 5.4L20 9l-4.4 3.8L17 19l-5-3-5 3 1.4-6.2L4 9l5.8-.6z"/></svg>提案</button>
+  </nav>
+</div>
+
+<!-- ===== Camera ===== -->
+<section id="cam" hidden>
+  <video id="video" playsinline muted autoplay></video>
+  <div class="camtop">
+    <div class="who">記録先　<b id="camWho"></b></div>
+    <button id="camPick">画像から</button>
+    <button id="camClose">閉じる</button>
+  </div>
+  <div class="guide" id="guide"></div>
+  <div class="cambottom">
+    <div class="strip" id="strip"></div>
+    <div class="camstatus" id="camStatus"></div>
+    <div class="camactions">
+      <button id="camClear">やり直す</button>
+      <button id="camShot">今の画面を追加</button>
+      <button id="camRecord" class="rec">経緯に記録</button>
+    </div>
+  </div>
+</section>
+
+<div id="sheetWrap" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div id="toast" hidden></div>
+<input type="file" id="filePick" accept="image/*" multiple hidden>
+<canvas id="sigCanvas" width="36" height="64" hidden></canvas>
+<canvas id="grabCanvas" hidden></canvas>
+
+<script>
+"use strict";
+/* =========================================================
+   基本ユーティリティ
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const TE = new TextEncoder(), TD = new TextDecoder();
+const h = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+const now = () => Date.now();
+const fmt = t => { const d = new Date(t); return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; };
+const norm = s => String(s || "").replace(/[\s\u3000、。，．,.!！?？「」『』…・~〜ー\-]/g, "").toLowerCase();
+function b64(buf){ const b = buf instanceof Uint8Array ? buf : new Uint8Array(buf); let s=""; for(let i=0;i<b.length;i+=0x8000) s += String.fromCharCode.apply(null, b.subarray(i,i+0x8000)); return btoa(s); }
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+/* =========================================================
+   暗号化（PBKDF2-SHA256 25万回 → AES-GCM 256bit）
+   ========================================================= */
+let PASS = null, currentSalt = null;
+const keyCache = new Map();
+async function deriveKey(salt){
+  const id = b64(salt);
+  if (keyCache.has(id)) return keyCache.get(id);
+  const base = await crypto.subtle.importKey("raw", TE.encode(PASS), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey({name:"PBKDF2", salt, iterations:250000, hash:"SHA-256"}, base, {name:"AES-GCM", length:256}, false, ["encrypt","decrypt"]);
+  keyCache.set(id, key); return key;
+}
+async function seal(obj){
+  if (!currentSalt) currentSalt = crypto.getRandomValues(new Uint8Array(16));
+  const key = await deriveKey(currentSalt);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({name:"AES-GCM", iv}, key, TE.encode(JSON.stringify(obj)));
+  return {app:"kazashite", v:1, kdf:"PBKDF2-SHA256-250000", salt:b64(currentSalt), iv:b64(iv), ct:b64(ct)};
+}
+async function unseal(blob){
+  const salt = unb64(blob.salt);
+  const key = await deriveKey(salt);
+  const pt = await crypto.subtle.decrypt({name:"AES-GCM", iv:unb64(blob.iv)}, key, unb64(blob.ct));
+  if (!currentSalt) currentSalt = salt;
+  return JSON.parse(TD.decode(pt));
+}
+
+/* =========================================================
+   状態
+   ========================================================= */
+const DEFAULTS = {
+  me:{name:""},
+  ai:{mode:"anthropic", anthropicKey:"", model:"claude-sonnet-5-5", url:"", key:"", customModel:"", format:"openai"},
+  github:{owner:"", repo:"", branch:"main", path:"kazashite/data.enc.json", token:""}
+};
+let S = structuredClone(DEFAULTS);           // 設定（端末内に暗号化保存）
+let D = {version:1, contacts:[], deleted:[]}; // 記録データ（GitHub＋端末内に暗号化保存）
+let curId = null, tab = "log", ghSha = null, viewReportId = null;
+const cur = () => D.contacts.find(c => c.id === curId) || null;
+const ghReady = () => { const g = S.github; return g.owner && g.repo && g.token && g.path; };
+function deepMerge(base, add){ const o = structuredClone(base); for (const k in add){ if (add[k] && typeof add[k]==="object" && !Array.isArray(add[k]) && o[k]) o[k] = deepMerge(o[k], add[k]); else o[k] = add[k]; } return o; }
+
+function newContact(name, relation=""){
+  const c = {id:uid(), name:name||"新しい相手", relation, placeholder:!name, createdAt:now(), updatedAt:now(), messages:[], memos:[], reports:[], ai:null, notes:""};
+  D.contacts.push(c); curId = c.id; return c;
+}
+function touch(c){ if (c) c.updatedAt = now(); persist(); }
+function markDeleted(id){ D.deleted = D.deleted || []; D.deleted.push(id); }
+
+/* =========================================================
+   保存：端末キャッシュ＋GitHub（暗号化）
+   ========================================================= */
+async function saveSettings(){ localStorage.setItem("kz.settings", JSON.stringify(await seal(S))); }
+let pushTimer = null;
+async function persist(){
+  try { localStorage.setItem("kz.cache", JSON.stringify(await seal(D))); } catch(e){ console.error(e); }
+  if (ghReady()){ setSync("未同期"); clearTimeout(pushTimer); pushTimer = setTimeout(push, 2500); }
+}
+function setSync(t, err=false){ const el = $("#sync"); el.textContent = t; el.classList.toggle("err", err); }
+
+async function gh(method, body, path){
+  const g = S.github;
+  const p = (path || g.path).split("/").map(encodeURIComponent).join("/");
+  let url = `https://api.github.com/repos/${encodeURIComponent(g.owner)}/${encodeURIComponent(g.repo)}/contents/${p}`;
+  if (method === "GET") url += `?ref=${encodeURIComponent(g.branch||"main")}&t=${now()}`;
+  return fetch(url, {method, cache:"no-store",
+    headers:{Authorization:`Bearer ${g.token}`, Accept:"application/vnd.github+json", "X-GitHub-Api-Version":"2022-11-28", ...(body?{"Content-Type":"application/json"}:{})},
+    body: body ? JSON.stringify(body) : undefined});
+}
+async function pull(){
+  const r = await gh("GET");
+  if (r.status === 404){ ghSha = null; return null; }
+  if (!r.ok) throw new Error(`GitHubから読み込めません（${r.status}）。リポジトリ名とトークンの権限を確認してください。`);
+  const j = await r.json(); ghSha = j.sha;
+  let content = j.content;
+  if (!content){ // 1MB超はblob APIで取得
+    const g = S.github;
+    const r2 = await fetch(`https://api.github.com/repos/${g.owner}/${g.repo}/git/blobs/${j.sha}`, {headers:{Authorization:`Bearer ${g.token}`, Accept:"application/vnd.github+json"}});
+    content = (await r2.json()).content;
+  }
+  const blob = JSON.parse(TD.decode(unb64(content.replace(/\n/g,""))));
+  try { return await unseal(blob); }
+  catch { throw new Error("GitHub上の記録を開けません。最初に設定したパスフレーズで開き直してください。"); }
+}
+let pushing = false;
+async function push(retry=true){
+  if (!ghReady() || pushing) return;
+  pushing = true; setSync("保存中…");
+  try {
+    const content = b64(TE.encode(JSON.stringify(await seal(D))));
+    const body = {message:`update ${new Date().toISOString()}`, content, branch:S.github.branch||"main"};
+    if (ghSha) body.sha = ghSha;
+    const r = await gh("PUT", body);
+    if ((r.status === 409 || r.status === 422) && retry){
+      // 他の端末が先に保存 → 取り込んで再保存
+      const remote = await pull();
+      if (remote) D = mergeData(D, remote);
+      pushing = false; render(); return push(false);
+    }
+    if (!r.ok) throw new Error(`GitHubに保存できません（${r.status}）`);
+    ghSha = (await r.json()).content.sha;
+    setSync("保存済み");
+  } catch(e){ setSync("保存エラー", true); toast(e.message); }
+  finally { pushing = false; }
+}
+async function syncNow(){
+  if (!ghReady()){ setSync("端末内のみ"); return; }
+  setSync("読み込み中…");
+  try {
+    const remote = await pull();
+    const before = remote ? JSON.stringify(remote) : "";
+    if (remote) D = mergeData(D, remote);
+    if (!curId && D.contacts[0]) curId = D.contacts[0].id;
+    localStorage.setItem("kz.cache", JSON.stringify(await seal(D)));
+    render();
+    if (JSON.stringify(D) !== before) await push(); else setSync("保存済み");
+  } catch(e){ setSync("同期エラー", true); toast(e.message); }
+}
+
+/* 複数端末の変更を統合（IDで和集合、削除は墓標で反映） */
+function unionById(a=[], b=[], del, key="seq"){
+  const m = new Map(); for (const x of a) m.set(x.id, x); for (const x of b) m.set(x.id, x);
+  return [...m.values()].filter(x => !del.has(x.id)).sort((p,q) => (p[key]??p.createdAt??0) - (q[key]??q.createdAt??0));
+}
+function mergeData(a, b){
+  const del = new Set([...(a.deleted||[]), ...(b.deleted||[])]);
+  const map = new Map();
+  for (const c of [...(b.contacts||[]), ...(a.contacts||[])]){
+    if (del.has(c.id)) continue;
+    const o = map.get(c.id);
+    if (!o){ map.set(c.id, structuredClone(c)); continue; }
+    const newer = (c.updatedAt||0) >= (o.updatedAt||0) ? c : o, older = newer === c ? o : c;
+    const m = {...structuredClone(older), ...structuredClone(newer)};
+    m.messages = unionById(older.messages, newer.messages, del);
+    m.memos = unionById(older.memos, newer.memos, del, "createdAt");
+    m.reports = unionById(older.reports, newer.reports, del, "createdAt");
+    map.set(c.id, m);
+  }
+  return {version:1, contacts:[...map.values()].sort((x,y)=>x.createdAt-y.createdAt), deleted:[...del].slice(-3000)};
+}
+
+/* =========================================================
+   AI 呼び出し（Anthropic API / 外部URL）
+   ========================================================= */
+async function callAI(system, parts, maxTokens=4096){
+  const a = S.ai;
+  const anthropicStyle = a.mode === "anthropic" || a.format === "anthropic";
+  let url, headers = {"Content-Type":"application/json"}, body;
+  if (a.mode === "anthropic"){
+    if (!a.anthropicKey) throw new Error("設定でAnthropic APIキーを入力してください。");
+    url = "https://api.anthropic.com/v1/messages";
+    headers["x-api-key"] = a.anthropicKey;
+    headers["anthropic-version"] = "2023-06-01";
+    headers["anthropic-dangerous-direct-browser-access"] = "true";
+  } else {
+    if (!a.url) throw new Error("設定で外部AIのURLを入力してください。");
+    url = a.url;
+    if (a.key){ if (anthropicStyle){ headers["x-api-key"] = a.key; headers["anthropic-version"] = "2023-06-01"; } else headers["Authorization"] = `Bearer ${a.key}`; }
+  }
+  const model = a.mode === "anthropic" ? a.model : a.customModel;
+  if (anthropicStyle){
+    body = {model, max_tokens:maxTokens, system, messages:[{role:"user", content:parts.map(p => p.type==="image"
+      ? {type:"image", source:{type:"base64", media_type:"image/jpeg", data:p.data}} : {type:"text", text:p.text})}]};
+  } else {
+    body = {model, max_tokens:maxTokens, messages:[{role:"system", content:system}, {role:"user", content:parts.map(p => p.type==="image"
+      ? {type:"image_url", image_url:{url:`data:image/jpeg;base64,${p.data}`}} : {type:"text", text:p.text})}]};
+  }
+  const r = await fetch(url, {method:"POST", headers, body:JSON.stringify(body)});
+  const txt = await r.text();
+  if (!r.ok) throw new Error(`AIの応答エラー（${r.status}）：${txt.slice(0,200)}`);
+  const j = JSON.parse(txt);
+  if (j.content) return j.content.filter(b => b.type === "text").map(b => b.text).join("");
+  if (j.choices) return j.choices[0].message.content;
+  if (typeof j.text === "string") return j.text;
+  throw new Error("AIの応答形式を読み取れません。設定の形式を確認してください。");
+}
+function parseJSON(t){
+  t = String(t).replace(/```json|```/g, "").trim();
+  const s = t.indexOf("{"), e = t.lastIndexOf("}");
+  return JSON.parse(t.slice(s, e + 1));
+}
+
+const EXTRACT_SYS = `あなたはスマートフォンのチャット画面を読み取るアシスタントです。
+与えられる画像は、別のスマホに表示されたチャット画面をカメラで撮影しながら、スクロールや画面切り替えをした連続フレームです。
+- フレーム間の重複部分は1回だけ数え、上から下・古い順に統合してください。
+- 右側（または色付き）の吹き出しは自分(self)、左側の吹き出しは相手(other)です。
+- 画面上部のトーク名・相手の名前があれば partnerName に入れてください。グループの場合は発言者名を speaker に入れてください。
+- 日付・時刻が読み取れれば time に入れてください（読み取れなければ空文字）。
+- スタンプや画像は「[スタンプ]」「[画像]」のように短く表記してください。
+- 既に記録済みの直近のやり取りが与えられた場合、それより後の新しいメッセージのみを返してください。
+- 読み取れない文字は推測で補わず「…」としてください。
+出力はJSONのみ。説明文やコードブロックは不要です。
+{"partnerName":"","app":"","messages":[{"from":"self|other","speaker":"","text":"","time":""}],"notes":""}`;
+
+const ADVICE_SYS = `あなたは対人コミュニケーションの相談役です。ユーザーと相手のチャットの経緯、ユーザーのメモ、これまでの人物像をもとに、
+(1) 相手の人物像と基本情報を更新し、(2) 今後どんな口調・流れでやり取りするとよいかをレポートし、(3) 次に送る返信案を作ります。
+- 相手との誠実で良好な関係を前提にし、相手を欺いたり操作したりする提案はしないでください。
+- 経緯から読み取れる事実と推測は区別し、推測には「〜と思われる」などを付けてください。
+- 返信案はそのまま送れる自然な日本語で、口調の違う案を3つ。ユーザーの意図が与えられたらそれを叶える案にしてください。
+- 既存の口調（敬語・タメ口・絵文字の有無など）にそろえてください。
+出力はJSONのみ。説明文やコードブロックは不要です。
+{"profile":{"summary":"","basics":[{"label":"","value":""}],"personality":"","communicationStyle":"","interests":[""]},
+ "report":{"situation":"","tone":"","flow":"","cautions":[""],"nextSteps":[""]},
+ "replies":[{"label":"","text":"","why":""}]}`;
+
+/* =========================================================
+   カメラ：スクロール中は待ち、画面が止まったら自動で取り込む
+   ========================================================= */
+const cam = {stream:null, timer:null, frames:[], prevSig:null, keptSig:null, stable:0, busy:false};
+const MAX_FRAMES = 20;
+const video = $("#video");
+
+async function openCamera(){
+  if (!cur()) newContact();
+  $("#camWho").textContent = cur().name;
+  $("#cam").hidden = false;
+  resetFrames();
+  try {
+    cam.stream = await navigator.mediaDevices.getUserMedia({audio:false, video:{facingMode:{ideal:"environment"}, width:{ideal:1920}, height:{ideal:1080}}});
+    video.srcObject = cam.stream; await video.play();
+    startSampling();
+  } catch(e){
+    camStatus("カメラを使えません。ブラウザの設定でカメラを許可するか、「画像から」でスクリーンショットを読み込んでください。");
+  }
+}
+function closeCamera(){
+  clearInterval(cam.timer); cam.timer = null;
+  if (cam.stream) cam.stream.getTracks().forEach(t => t.stop());
+  cam.stream = null; video.srcObject = null;
+  $("#cam").hidden = true;
+}
+function resetFrames(){ cam.frames = []; cam.keptSig = null; cam.prevSig = null; cam.stable = 0; $("#strip").innerHTML = ""; updateCamStatus(); }
+function camStatus(html){ $("#camStatus").innerHTML = html; }
+function updateCamStatus(){
+  const n = cam.frames.length;
+  if (cam.busy) return;
+  if (n >= MAX_FRAMES) camStatus(`${n}枚取り込みました（上限）。「経緯に記録」を押してください。`);
+  else camStatus(`<span class="dot"></span>${n}枚取り込み済み。ゆっくりスクロールすると、画面が止まるたびに自動で取り込みます。`);
+}
+const sigCtx = $("#sigCanvas").getContext("2d", {willReadFrequently:true});
+function signature(){
+  sigCtx.drawImage(video, 0, 0, 36, 64);
+  const d = sigCtx.getImageData(0, 0, 36, 64).data, g = new Uint8Array(36*64);
+  for (let i = 0; i < g.length; i++) g[i] = d[i*4]*0.3 + d[i*4+1]*0.59 + d[i*4+2]*0.11;
+  return g;
+}
+const diff = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]); return s / a.length; };
+function startSampling(){
+  clearInterval(cam.timer);
+  cam.timer = setInterval(() => {
+    if (cam.busy || !video.videoWidth || cam.frames.length >= MAX_FRAMES) return;
+    const sig = signature();
+    if (cam.prevSig){
+      const motion = diff(sig, cam.prevSig);
+      cam.stable = motion < 3.2 ? cam.stable + 1 : 0;
+      if (cam.stable >= 2 && (!cam.keptSig || diff(sig, cam.keptSig) > 7)){ grab(); cam.keptSig = sig; }
+    }
+    cam.prevSig = sig;
+  }, 350);
+}
+function addFrame(dataUrl){
+  cam.frames.push(dataUrl.split(",")[1]);
+  const img = new Image(); img.src = dataUrl; img.alt = `取り込み${cam.frames.length}`;
+  $("#strip").appendChild(img); $("#strip").scrollLeft = 1e6;
+  const g = $("#guide"); g.classList.add("flash"); setTimeout(() => g.classList.remove("flash"), 180);
+  if (navigator.vibrate) navigator.vibrate(15);
+  updateCamStatus();
+}
+function grab(){
+  if (!video.videoWidth || cam.frames.length >= MAX_FRAMES) return;
+  const c = $("#grabCanvas"), vw = video.videoWidth, vh = video.videoHeight;
+  const sc = Math.min(1, 1400 / Math.max(vw, vh));
+  c.width = Math.round(vw*sc); c.height = Math.round(vh*sc);
+  c.getContext("2d").drawImage(video, 0, 0, c.width, c.height);
+  addFrame(c.toDataURL("image/jpeg", 0.8));
+}
+async function filesToFrames(files){
+  for (const f of files){
+    if (cam.frames.length >= MAX_FRAMES) break;
+    const url = URL.createObjectURL(f);
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const c = $("#grabCanvas"), sc = Math.min(1, 1600 / Math.max(img.width, img.height));
+    c.width = Math.round(img.width*sc); c.height = Math.round(img.height*sc);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    addFrame(c.toDataURL("image/jpeg", 0.82));
+    URL.revokeObjectURL(url);
+  }
+}
+
+/* 経緯に記録 */
+async function recordFrames(){
+  if (cam.busy) return;
+  if (!cam.frames.length) grab();
+  if (!cam.frames.length){ toast("取り込んだ画面がありません。"); return; }
+  cam.busy = true; setCamButtons(true);
+  camStatus(`<span class="spin" style="display:inline-block;vertical-align:-4px;margin-right:8px"></span>${cam.frames.length}枚から会話を読み取っています…`);
+  let target = cur();
+  try {
+    const tail = target.messages.slice(-12).map(m => `${m.from==="self"?"自分":"相手"}：${m.text}`).join("\n");
+    const parts = [{type:"text", text: tail ? `既に記録済みの直近のやり取り：\n${tail}\n\n以下のフレームから新しいメッセージを読み取ってください。` : "以下のフレームからやり取りを読み取ってください。"},
+                   ...cam.frames.map(d => ({type:"image", data:d}))];
+    const res = parseJSON(await callAI(EXTRACT_SYS, parts));
+    closeCamera(); cam.busy = false; setCamButtons(false);
+    target = await chooseTarget(target, (res.partnerName||"").trim());
+    const recent = new Set(target.messages.slice(-80).map(m => m.from + "|" + norm(m.text)));
+    const batch = uid(), base = now() * 1000;
+    const fresh = (res.messages || []).filter(m => m && m.text && !recent.has((m.from==="self"?"self":"other") + "|" + norm(m.text)))
+      .map((m, i) => ({id:uid(), seq:base+i, batch, capturedAt:now(), from:m.from==="self"?"self":"other", speaker:m.speaker||"", text:String(m.text).trim(), time:m.time||""}));
+    target.messages.push(...fresh);
+    if (res.app) target.app = res.app;
+    curId = target.id; tab = "log"; touch(target); render();
+    window.scrollTo({top:document.body.scrollHeight});
+    toast(fresh.length ? `${target.name}の経緯に${fresh.length}件記録しました` : "新しいメッセージは見つかりませんでした",
+          fresh.length ? {label:"返信案を作る", fn:() => { tab = "advice"; render(); runAdvice(); }} : null);
+  } catch(e){
+    cam.busy = false; setCamButtons(false);
+    camStatus(h(e.message));
+  }
+}
+function setCamButtons(dis){ ["#camClear","#camShot","#camRecord","#camPick"].forEach(s => $(s).disabled = dis); }
+
+async function chooseTarget(target, partner){
+  if (!partner) { return target; }
+  const pn = norm(partner);
+  const match = D.contacts.find(c => !c.placeholder && c.name && (norm(c.name) === pn || norm(c.name).includes(pn) || pn.includes(norm(c.name))));
+  if (match && match.id === target.id) return target;
+  if (match){
+    const i = await ask(`読み取った相手は「${partner}」です。どちらに記録しますか？`, [`${match.name}に記録`, `${target.name}に記録`]);
+    return i === 0 ? match : target;
+  }
+  if (target.placeholder || (!target.messages.length && target.name === "新しい相手")){
+    target.name = partner; target.placeholder = false; return target;
+  }
+  const i = await ask(`読み取った相手は「${partner}」です。どちらに記録しますか？`, [`「${partner}」を新しく追加`, `${target.name}に記録`]);
+  if (i === 0){ const c = newContact(partner); return c; }
+  return target;
+}
+
+/* =========================================================
+   提案（人物像＋レポート＋返信案）
+   ========================================================= */
+let adviceBusy = false;
+async function runAdvice(){
+  const c = cur(); if (!c || adviceBusy) return;
+  if (!c.messages.length && !c.memos.length){ toast("先に経緯を記録するか、メモを追加してください。"); return; }
+  const intent = ($("#intent")?.value || "").trim();
+  c.lastIntent = intent;
+  adviceBusy = true; render();
+  try {
+    const msgs = c.messages.slice(-150).map(m => `${m.from==="self"?"自分":(m.speaker||"相手")}${m.time?`（${m.time}）`:""}：${m.text}`).join("\n");
+    const memos = c.memos.map(m => `- ${m.text}`).join("\n");
+    const prev = c.ai ? JSON.stringify({summary:c.ai.summary, basics:c.ai.basics, personality:c.ai.personality}) : "なし";
+    const text = `ユーザーの呼び名：${S.me.name || "（未設定）"}
+相手の名前：${c.name}
+関係：${c.relation || "（未設定）"}
+相手について手元の情報：${c.notes || "なし"}
+これまでの人物像：${prev}
+
+ユーザーのメモ：
+${memos || "なし"}
+
+やり取りの経緯（古い順）：
+${msgs || "まだ記録なし"}
+
+ユーザーの意図：${intent || "特になし（関係を良くする自然な返信）"}`;
+    const res = parseJSON(await callAI(ADVICE_SYS, [{type:"text", text}]));
+    c.ai = {...(res.profile||{}), updatedAt:now()};
+    const rep = {id:uid(), createdAt:now(), intent, report:res.report||{}, replies:res.replies||[]};
+    c.reports.push(rep); c.reports = c.reports.slice(-15);
+    viewReportId = rep.id;
+    touch(c);
+  } catch(e){ toast(e.message); }
+  finally { adviceBusy = false; render(); }
+}
+
+/* =========================================================
+   画面描画
+   ========================================================= */
+function render(){
+  renderContacts();
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
+  const c = cur(), v = $("#view");
+  if (!c){
+    v.innerHTML = `<div class="empty">まだ相手がいません。下の「かざす」でチャット画面を読み込むと、相手が自動で追加されます。<br><button class="btn" data-act="addContact">相手を手動で追加</button></div>`;
+    return;
+  }
+  v.innerHTML = ({log:viewLog, person:viewPerson, memo:viewMemo, advice:viewAdvice})[tab](c);
+}
+function renderContacts(){
+  $("#contacts").innerHTML = D.contacts.map(c =>
+    `<button class="chip" data-contact="${c.id}" aria-current="${c.id===curId}">${h(c.name)}</button>`).join("")
+    + `<button class="chip add" data-act="addContact">＋ 相手を追加</button>`;
+  const a = $("#contacts").querySelector('[aria-current="true"]'); if (a) a.scrollIntoView({inline:"nearest", block:"nearest"});
+}
+function viewLog(c){
+  if (!c.messages.length) return `<div class="empty">${h(c.name)}とのやり取りはまだありません。<br>「かざす」を押して、もう1台のスマホのチャット画面にカメラを向け、ゆっくりスクロールしてから「経緯に記録」を押してください。<br><button class="btn quiet" data-act="pickImages">スクリーンショットから読み込む</button></div>`;
+  const groups = []; let g = null;
+  for (const m of c.messages){ if (!g || g.batch !== m.batch){ g = {batch:m.batch, at:m.capturedAt, items:[]}; groups.push(g); } g.items.push(m); }
+  return `<div class="section"><h2>やり取りの一覧（${c.messages.length}件）</h2>` + groups.map(g => `<div class="batch"><div class="batchhead">${fmt(g.at)} に記録</div>` +
+    g.items.map(m => `<div class="msg ${m.from}"><button data-msg="${m.id}">${m.speaker && m.from==="other" ? `<small style="color:var(--muted)">${h(m.speaker)}</small>\n` : ""}${h(m.text)}${m.time?`<time>${h(m.time)}</time>`:""}</button></div>`).join("") + `</div>`).join("") + `</div>`;
+}
+function viewPerson(c){
+  const a = c.ai;
+  const ai = a ? `<div class="panel">
+      <p style="margin:0 0 12px">${h(a.summary)}</p>
+      ${a.basics?.length ? `<dl class="kv">${a.basics.filter(b=>b.label).map(b => `<dt>${h(b.label)}</dt><dd>${h(b.value)}</dd>`).join("")}</dl>` : ""}
+      <dl class="rep" style="margin:14px 0 0">
+        ${a.personality ? `<dt>性格・価値観</dt><dd>${h(a.personality)}</dd>` : ""}
+        ${a.communicationStyle ? `<dt>やり取りの癖</dt><dd>${h(a.communicationStyle)}</dd>` : ""}
+        ${a.interests?.filter(Boolean).length ? `<dt>関心ごと</dt><dd><div class="tags">${a.interests.filter(Boolean).map(t => `<span>${h(t)}</span>`).join("")}</div></dd>` : ""}
+      </dl>
+      <p style="margin:12px 0 0;font-size:12px;color:var(--muted)">${fmt(a.updatedAt)} にAIが更新</p></div>`
+    : `<div class="empty">経緯を記録して「提案」タブでレポートを作ると、AIが人物像をまとめます。</div>`;
+  return `<div class="section"><h2>AIが見た人物像</h2>${ai}</div>
+  <div class="section"><h2>基本情報</h2><div class="panel">
+    <label class="field"><span>名前</span><input id="pName" value="${h(c.name)}"></label>
+    <label class="field"><span>関係（例：取引先の部長、大学の友人）</span><input id="pRel" value="${h(c.relation)}"></label>
+    <label class="field"><span>知っていること（AIにも伝えます）</span><textarea id="pNotes" placeholder="誕生日、家族構成、好きなもの、注意点など">${h(c.notes)}</textarea></label>
+    <div class="row"><button class="btn" data-act="saveProfile">基本情報を保存</button><button class="btn danger" data-act="deleteContact">この相手を削除</button></div>
+  </div></div>`;
+}
+function viewMemo(c){
+  const list = [...c.memos].sort((a,b) => b.createdAt - a.createdAt);
+  return `<div class="section"><h2>メモを追加</h2>
+    <label class="field"><textarea id="memoText" placeholder="気づいたこと、次に話したいこと、約束したことなど"></textarea></label>
+    <button class="btn" data-act="addMemo">メモを追加</button></div>
+  <div class="section"><h2>メモ（${list.length}件）</h2>${list.length ? list.map(m => `<div class="memo"><p>${h(m.text)}</p><footer><span>${fmt(m.createdAt)}</span><span><button data-memo-edit="${m.id}">編集</button><button data-memo-del="${m.id}">削除</button></span></footer></div>`).join("") : `<div class="empty">メモはまだありません。メモはレポート作成時にAIへ渡されます。</div>`}</div>`;
+}
+function viewAdvice(c){
+  const rep = c.reports.find(r => r.id === viewReportId) || c.reports[c.reports.length - 1];
+  const r = rep?.report || {};
+  const li = a => (a||[]).filter(Boolean).map(x => `<li>${h(x)}</li>`).join("");
+  return `<div class="section"><h2>どう返したいか（任意）</h2>
+    <label class="field"><textarea id="intent" placeholder="例：日程を来週にずらしたい／角を立てずに断りたい／もっと仲良くなりたい">${h(c.lastIntent||"")}</textarea></label>
+    <button class="btn block" data-act="runAdvice" ${adviceBusy?"disabled":""}>${rep ? "レポートと返信案を作り直す" : "レポートと返信案を作る"}</button>
+    ${adviceBusy ? `<div class="loading"><span class="spin"></span>経緯を読んで考えています…</div>` : ""}
+  </div>
+  ${rep ? `<div class="section"><h2>返信案${rep.intent ? `（意図：${h(rep.intent)}）` : ""}</h2>
+    ${(rep.replies||[]).map((x,i) => `<div class="reply"><h3>${h(x.label||`案${i+1}`)}</h3><p>${h(x.text)}</p>${x.why?`<small>${h(x.why)}</small>`:""}<button class="btn quiet" data-copy="${i}">コピー</button></div>`).join("")}
+  </div>
+  <div class="section"><h2>今後のやり取りレポート</h2><div class="panel"><dl class="rep" style="margin:0">
+    ${r.situation?`<dt>いまの状況</dt><dd>${h(r.situation)}</dd>`:""}
+    ${r.tone?`<dt>おすすめの口調</dt><dd>${h(r.tone)}</dd>`:""}
+    ${r.flow?`<dt>つくりたい流れ</dt><dd>${h(r.flow)}</dd>`:""}
+    ${li(r.cautions)?`<dt>気をつけること</dt><dd><ul>${li(r.cautions)}</ul></dd>`:""}
+    ${li(r.nextSteps)?`<dt>次の一手</dt><dd><ul>${li(r.nextSteps)}</ul></dd>`:""}
+  </dl><p style="margin:12px 0 0;font-size:12px;color:var(--muted)">${fmt(rep.createdAt)} に作成</p></div></div>
+  ${c.reports.length > 1 ? `<div class="section"><h2>過去のレポート</h2><ul class="hist">${[...c.reports].reverse().map(x => `<li><button data-report="${x.id}">${fmt(x.createdAt)}${x.intent?`　${h(x.intent.slice(0,30))}`:""}${x.id===rep.id?"（表示中）":""}</button></li>`).join("")}</ul></div>` : ""}`
+  : `<div class="empty">経緯とメモをもとに、相手の人物像・今後の口調や流れ・返信案をAIがまとめます。</div>`}`;
+}
+
+/* =========================================================
+   シート・トースト
+   ========================================================= */
+function openSheet(html){ $("#sheet").innerHTML = html; $("#sheetWrap").hidden = false; const f = $("#sheet").querySelector("input,textarea"); if (f) setTimeout(() => f.focus(), 50); }
+function closeSheet(){ $("#sheetWrap").hidden = true; $("#sheet").innerHTML = ""; }
+$("#sheetWrap").addEventListener("click", e => { if (e.target.id === "sheetWrap") closeSheet(); });
+function ask(msg, options){
+  return new Promise(res => {
+    openSheet(`<h2>${h(msg)}</h2><div style="display:grid;gap:10px">${options.map((o,i) => `<button class="btn ${i?"ghost":""} block" data-ask="${i}">${h(o)}</button>`).join("")}</div>`);
+    $("#sheet").onclick = e => { const b = e.target.closest("[data-ask]"); if (b){ $("#sheet").onclick = null; closeSheet(); res(+b.dataset.ask); } };
+  });
+}
+let toastTimer;
+function toast(msg, action){
+  const t = $("#toast"); t.innerHTML = `<span>${h(msg)}</span>${action?`<button>${h(action.label)}</button>`:""}`;
+  t.hidden = false; if (action) t.querySelector("button").onclick = () => { t.hidden = true; action.fn(); };
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, action ? 7000 : 4000);
+}
+
+/* ---------- 編集シート ---------- */
+function editMessage(id){
+  const c = cur(), m = c.messages.find(x => x.id === id); if (!m) return;
+  openSheet(`<h2>メッセージを編集</h2>
+    <div class="seg"><label><input type="radio" name="mf" value="other" ${m.from==="other"?"checked":""}>相手</label><label><input type="radio" name="mf" value="self" ${m.from==="self"?"checked":""}>自分</label></div>
+    <label class="field"><span>本文</span><textarea id="mText">${h(m.text)}</textarea></label>
+    <label class="field"><span>日時（任意）</span><input id="mTime" value="${h(m.time)}"></label>
+    <div class="actions"><button class="btn danger" id="mDel">削除</button><button class="btn" id="mSave">保存</button></div>`);
+  $("#mSave").onclick = () => { m.text = $("#mText").value.trim(); m.time = $("#mTime").value.trim(); m.from = $("#sheet").querySelector('[name=mf]:checked').value; closeSheet(); touch(c); render(); };
+  $("#mDel").onclick = () => { c.messages = c.messages.filter(x => x.id !== id); markDeleted(id); closeSheet(); touch(c); render(); };
+}
+function addContactSheet(){
+  openSheet(`<h2>相手を追加</h2>
+    <label class="field"><span>名前</span><input id="ncName"></label>
+    <label class="field"><span>関係（任意）</span><input id="ncRel" placeholder="例：取引先の部長"></label>
+    <div class="actions"><button class="btn ghost" id="ncCancel">やめる</button><button class="btn" id="ncOk">追加</button></div>`);
+  $("#ncCancel").onclick = closeSheet;
+  $("#ncOk").onclick = () => { const n = $("#ncName").value.trim(); if (!n) return; newContact(n, $("#ncRel").value.trim()); closeSheet(); tab = "log"; persist(); render(); };
+}
+function settingsSheet(){
+  const a = S.ai, g = S.github;
+  openSheet(`<h2>設定</h2>
+    <label class="field"><span>あなたの呼び名（AIが返信案に使います）</span><input id="sMe" value="${h(S.me.name)}"></label>
+    <h3>AI</h3>
+    <div class="seg"><label><input type="radio" name="aimode" value="anthropic" ${a.mode==="anthropic"?"checked":""}>Claude（Anthropic API）</label><label><input type="radio" name="aimode" value="custom" ${a.mode==="custom"?"checked":""}>外部AIをURLで指定</label></div>
+    <div id="aiAnth" ${a.mode!=="anthropic"?"hidden":""}>
+      <label class="field"><span>Anthropic APIキー</span><input id="sAKey" type="password" value="${h(a.anthropicKey)}" placeholder="sk-ant-..."></label>
+      <label class="field"><span>モデル</span><input id="sAModel" value="${h(a.model)}"></label>
+      <p class="note">claude.aiの月額プランではなく、console.anthropic.com で発行するAPIキーを使います。</p>
+    </div>
+    <div id="aiCustom" ${a.mode!=="custom"?"hidden":""}>
+      <label class="field"><span>エンドポイントURL</span><input id="sUrl" value="${h(a.url)}" placeholder="https://.../v1/chat/completions"></label>
+      <label class="field"><span>APIキー（任意）</span><input id="sKey" type="password" value="${h(a.key)}"></label>
+      <label class="field"><span>モデル名</span><input id="sCModel" value="${h(a.customModel)}"></label>
+      <label class="field"><span>リクエスト形式</span><select id="sFmt"><option value="openai" ${a.format==="openai"?"selected":""}>OpenAI互換（chat/completions）</option><option value="anthropic" ${a.format==="anthropic"?"selected":""}>Anthropic互換（messages）</option></select></label>
+      <p class="note">画像入力に対応したモデルを指定してください。URL側でブラウザからのアクセス（CORS）を許可している必要があります。</p>
+    </div>
+    <button class="btn ghost" id="sTestAI">AIの接続を試す</button>
+    <h3>保存先（GitHub・暗号化）</h3>
+    <label class="field"><span>オーナー（ユーザー名または組織名）</span><input id="sOwner" value="${h(g.owner)}"></label>
+    <label class="field"><span>保存用リポジトリ（privateを推奨）</span><input id="sRepo" value="${h(g.repo)}"></label>
+    <label class="field"><span>ブランチ</span><input id="sBranch" value="${h(g.branch)}"></label>
+    <label class="field"><span>ファイルパス</span><input id="sPath" value="${h(g.path)}"></label>
+    <label class="field"><span>アクセストークン（Fine-grained、Contents: Read and write）</span><input id="sToken" type="password" value="${h(g.token)}"></label>
+    <p class="note">記録はパスフレーズで暗号化してから保存されます。APIキーやトークンはこの端末内にだけ、同じく暗号化して保存されます。</p>
+    <div class="row"><button class="btn ghost" id="sTestGH">GitHubの接続を試す</button><button class="btn ghost" id="sSync">今すぐ同期</button></div>
+    <div class="actions"><button class="btn ghost" id="sCancel">閉じる</button><button class="btn" id="sSave">設定を保存</button></div>
+    <h3>その他</h3>
+    <div class="row"><button class="btn ghost" id="sExport">記録を書き出す（JSON）</button><button class="btn danger" id="sLock">ロックする</button></div>`);
+  const sh = $("#sheet");
+  sh.querySelectorAll("[name=aimode]").forEach(r => r.onchange = () => { const m = sh.querySelector("[name=aimode]:checked").value; $("#aiAnth").hidden = m !== "anthropic"; $("#aiCustom").hidden = m !== "custom"; });
+  const read = () => {
+    S.me.name = $("#sMe").value.trim();
+    S.ai = {mode:sh.querySelector("[name=aimode]:checked").value, anthropicKey:$("#sAKey").value.trim(), model:$("#sAModel").value.trim()||DEFAULTS.ai.model,
+            url:$("#sUrl").value.trim(), key:$("#sKey").value.trim(), customModel:$("#sCModel").value.trim(), format:$("#sFmt").value};
+    const oldG = JSON.stringify(S.github);
+    S.github = {owner:$("#sOwner").value.trim(), repo:$("#sRepo").value.trim(), branch:$("#sBranch").value.trim()||"main", path:$("#sPath").value.trim()||DEFAULTS.github.path, token:$("#sToken").value.trim()};
+    if (oldG !== JSON.stringify(S.github)) ghSha = null;
+    return oldG !== JSON.stringify(S.github);
+  };
+  $("#sCancel").onclick = closeSheet;
+  $("#sSave").onclick = async () => { const changed = read(); await saveSettings(); closeSheet(); toast("設定を保存しました"); if (changed) syncNow(); else if (!ghReady()) setSync("端末内のみ"); };
+  $("#sTestAI").onclick = async e => { read(); e.target.disabled = true; e.target.textContent = "確認中…";
+    try { const t = await callAI("短く答えてください。", [{type:"text", text:"「接続OK」とだけ返してください。"}], 50); toast(`AIの応答：${t.trim().slice(0,40)}`); }
+    catch(err){ toast(err.message); } finally { e.target.disabled = false; e.target.textContent = "AIの接続を試す"; } };
+  $("#sTestGH").onclick = async () => { read();
+    try { const r = await fetch(`https://api.github.com/repos/${S.github.owner}/${S.github.repo}`, {headers:{Authorization:`Bearer ${S.github.token}`, Accept:"application/vnd.github+json"}});
+      if (!r.ok) throw new Error(`リポジトリにアクセスできません（${r.status}）`);
+      const j = await r.json(); toast(`接続できました：${j.full_name}${j.private ? "（private）" : "（public：privateを推奨します）"}`); }
+    catch(err){ toast(err.message); } };
+  $("#sSync").onclick = async () => { read(); await saveSettings(); closeSheet(); syncNow(); };
+  $("#sExport").onclick = () => { const blob = new Blob([JSON.stringify(D, null, 2)], {type:"application/json"}); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `kazashite-${new Date().toISOString().slice(0,10)}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
+  $("#sLock").onclick = () => location.reload();
+}
+
+/* =========================================================
+   イベント
+   ========================================================= */
+document.addEventListener("click", e => {
+  const t = e.target.closest("button"); if (!t) return;
+  if (t.dataset.contact){ curId = t.dataset.contact; viewReportId = null; render(); window.scrollTo({top:0}); return; }
+  if (t.dataset.tab){ tab = t.dataset.tab; render(); window.scrollTo({top:0}); return; }
+  if (t.dataset.msg){ editMessage(t.dataset.msg); return; }
+  if (t.dataset.report){ viewReportId = t.dataset.report; render(); window.scrollTo({top:0}); return; }
+  if (t.dataset.copy !== undefined){
+    const c = cur(), rep = c.reports.find(r => r.id === viewReportId) || c.reports[c.reports.length-1];
+    navigator.clipboard.writeText(rep.replies[+t.dataset.copy].text).then(() => toast("コピーしました"), () => toast("コピーできませんでした"));
+    return;
+  }
+  if (t.dataset.memoDel){ const c = cur(); c.memos = c.memos.filter(m => m.id !== t.dataset.memoDel); markDeleted(t.dataset.memoDel); touch(c); render(); return; }
+  if (t.dataset.memoEdit){
+    const c = cur(), m = c.memos.find(x => x.id === t.dataset.memoEdit);
+    openSheet(`<h2>メモを編集</h2><label class="field"><textarea id="meText">${h(m.text)}</textarea></label><div class="actions"><button class="btn ghost" id="meC">やめる</button><button class="btn" id="meS">保存</button></div>`);
+    $("#meC").onclick = closeSheet; $("#meS").onclick = () => { m.text = $("#meText").value.trim(); closeSheet(); touch(c); render(); };
+    return;
+  }
+  const act = t.dataset.act; if (!act) return;
+  const c = cur();
+  if (act === "addContact") addContactSheet();
+  if (act === "pickImages"){ openCamera().then(() => $("#filePick").click()); }
+  if (act === "addMemo"){ const v = $("#memoText").value.trim(); if (!v) return; c.memos.push({id:uid(), text:v, createdAt:now()}); touch(c); render(); toast("メモを追加しました"); }
+  if (act === "saveProfile"){ c.name = $("#pName").value.trim() || c.name; c.relation = $("#pRel").value.trim(); c.notes = $("#pNotes").value.trim(); c.placeholder = false; touch(c); render(); toast("基本情報を保存しました"); }
+  if (act === "deleteContact"){
+    ask(`${c.name}の記録をすべて削除しますか？元に戻せません。`, ["削除する", "やめる"]).then(i => {
+      if (i !== 0) return; markDeleted(c.id); D.contacts = D.contacts.filter(x => x.id !== c.id); curId = D.contacts[0]?.id || null; tab = "log"; persist(); render(); toast("削除しました"); });
+  }
+  if (act === "runAdvice") runAdvice();
+});
+$("#fab").onclick = openCamera;
+$("#btnSettings").onclick = settingsSheet;
+$("#camClose").onclick = closeCamera;
+$("#camClear").onclick = resetFrames;
+$("#camShot").onclick = grab;
+$("#camRecord").onclick = recordFrames;
+$("#camPick").onclick = () => $("#filePick").click();
+$("#filePick").onchange = async e => { await filesToFrames([...e.target.files]); e.target.value = ""; };
+document.addEventListener("visibilitychange", () => { if (document.hidden && cam.stream && !cam.busy) closeCamera(); });
+
+/* =========================================================
+   起動・ロック解除
+   ========================================================= */
+const firstRun = !localStorage.getItem("kz.settings");
+if (firstRun){
+  $("#pass2Wrap").hidden = false;
+  $("#lockMsg").textContent = "最初にパスフレーズを決めてください。記録とAPIキーはこのパスフレーズで暗号化されます。忘れると記録を開けなくなります。別の端末でも同じパスフレーズを使ってください。";
+  $("#btnUnlock").textContent = "はじめる";
+  $("#btnReset").hidden = true;
+}
+async function unlock(){
+  const p = $("#pass").value, err = $("#lockErr");
+  if (p.length < 8){ err.textContent = "パスフレーズは8文字以上にしてください。"; return; }
+  if (firstRun && p !== $("#pass2").value){ err.textContent = "確認用のパスフレーズが一致しません。"; return; }
+  err.textContent = ""; $("#btnUnlock").disabled = true; $("#btnUnlock").textContent = "開いています…";
+  PASS = p;
+  try {
+    const raw = localStorage.getItem("kz.settings");
+    S = raw ? deepMerge(DEFAULTS, await unseal(JSON.parse(raw))) : structuredClone(DEFAULTS);
+    if (!raw) await saveSettings();
+    const cache = localStorage.getItem("kz.cache");
+    if (cache) D = await unseal(JSON.parse(cache));
+    D.deleted = D.deleted || [];
+  } catch {
+    PASS = null; keyCache.clear(); currentSalt = null;
+    err.textContent = "パスフレーズが違います。";
+    $("#btnUnlock").disabled = false; $("#btnUnlock").textContent = "開く"; return;
+  }
+  curId = D.contacts[0]?.id || null;
+  $("#lock").hidden = true; $("#app").hidden = false;
+  render();
+  if (ghReady()) syncNow();
+  else { setSync("端末内のみ"); if (firstRun) settingsSheet(); }
+}
+$("#btnUnlock").onclick = unlock;
+$("#pass").addEventListener("keydown", e => { if (e.key === "Enter" && !firstRun) unlock(); });
+$("#pass2").addEventListener("keydown", e => { if (e.key === "Enter") unlock(); });
+$("#btnReset").onclick = () => {
+  if (confirm("この端末に保存された設定と記録のコピーを消去します。GitHub上の記録は消えません。続けますか？")){
+    localStorage.removeItem("kz.settings"); localStorage.removeItem("kz.cache"); location.reload();
+  }
+};
+</script>
+</body>
+</html>
